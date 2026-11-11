@@ -90,3 +90,4 @@ footer.site .legal{margin-top:50px;padding-top:24px;border-top:1px solid rgba(25
  footer.site .cols{grid-template-columns:1fr}
  .hero{padding:56px 0 40px}
 }
+.address img.map{width:100%;height:auto;border-radius:6px}
