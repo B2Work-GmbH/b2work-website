@@ -1,10 +1,11 @@
 # b2work.ch
 
-Statische Website der B2Work GmbH (Elektroplanung und Cudo), veröffentlicht über GitHub Pages aus `main`.
+Statische Website der B2Work GmbH, veröffentlicht über GitHub Pages aus `main` (Domain b2work.ch, DNS bei Hostpoint).
 
-- `index.html` – Startseite
-- `impressum-und-datenschutz/index.html` – Impressum und Datenschutz
-- `assets/` – CSS, Schriften (Figtree, Instrument Sans, SIL OFL) und Bilder
-- `build.py` – erzeugt die beiden HTML-Seiten (Texte stehen im Skript)
+- `index.html` – Startseite (Nachbau der onepage-Seite, Stand November 2026)
+- `leistungen/` – Unterseiten zu den Leistungen
+- `impressum-und-datenschutz/` – Impressum und Datenschutz
+- `css/op/`, `js/`, `img/`, `onepage-bilder/` – Gestaltung, Animation, Bilder (Schrift Questrial, SIL OFL)
 
-Custom Domain: `deploy/CNAME.vorbereitet` wird erst bei der DNS-Umstellung nach `CNAME` verschoben und in den Pages-Einstellungen gesetzt.
+Die Seiten werden mit Builder-Skripten erzeugt; Arbeitsstand und Vorlagen liegen im Teams unter
+Administration › Corporate-Design › Website.
