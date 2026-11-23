@@ -227,7 +227,7 @@
     g0.addColorStop(0, 'rgba(70,58,44,.18)'); g0.addColorStop(1, 'rgba(70,58,44,0)');
     ctx.fillStyle = g0; ctx.fillRect(0, 0, cw, ch);
     var tz = base[1];
-    var TREES = [[-3.2, D + .6, .75], [2.1, D + 2.8, .62], [6.8, D + 3, .7], [W + 2.6, D + 1.4, .72], [W + 2.9, 2.2, .6], [-3.4, D + 2.6, .5]];
+    var TREES = [[-1.2, D + 2.4, .7], [2.1, D + 2.8, .62], [6.8, D + 3, .7], [W + 2.6, D + 1.4, .72], [W + 2.9, 2.2, .6]];
 
     function ground() {
       ctx.save(); ctx.globalAlpha *= terrA;
