@@ -93,37 +93,111 @@
     ctx.save(); ctx.globalAlpha *= a * .22; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p[0], p[1], r * 2.4, 0, 7); ctx.fill();
     ctx.globalAlpha *= 1 / .22; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 7); ctx.fill(); ctx.restore();
   }
+  function hash(n) { var x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); }
+  // Baum: Stamm, mehrteilige Krone mit Licht und Schatten, Schlagschatten am Boden
   function tree(x, y, z, r, a) {
     if (a <= .01) return;
-    var b = P(x, y, z), t = P(x, y, z + r * 2.2);
+    var b = P(x, y, z), k = r * s;
     ctx.save(); ctx.globalAlpha *= a;
-    ctx.fillStyle = 'rgba(60,50,40,.10)'; ctx.beginPath(); ctx.ellipse(b[0] + r * s * .5, b[1], r * s * 1.1, r * s * .45, 0, 0, 7); ctx.fill();
-    ctx.strokeStyle = 'rgba(110,95,80,.8)'; ctx.lineWidth = 2; path([b, t]); ctx.stroke();
-    var g = ctx.createRadialGradient(t[0] - r * s * .35, t[1] - r * s * .5, 2, t[0], t[1], r * s);
-    g.addColorStop(0, 'rgba(176,198,150,.95)'); g.addColorStop(1, 'rgba(118,146,108,.95)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(t[0], t[1] - r * s * .2, r * s, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(70,58,44,.16)'; ctx.beginPath(); ctx.ellipse(b[0] + k * .55, b[1] + k * .12, k * 1.15, k * .42, 0, 0, 7); ctx.fill();
+    var t = P(x, y, z + r * 1.6);
+    ctx.strokeStyle = 'rgb(112,94,76)'; ctx.lineWidth = Math.max(1.6, k * .14); ctx.lineCap = 'round'; path([b, t]); ctx.stroke();
+    var blobs = [[-.45, .1, .62], [.42, .18, .58], [0, -.42, .7], [-.15, .25, .66], [.2, -.1, .6]];
+    blobs.forEach(function (q, i) {
+      var cx = t[0] + q[0] * k, cy = t[1] - k * .55 + q[1] * k, rr = q[2] * k;
+      var g = ctx.createRadialGradient(cx - rr * .45, cy - rr * .5, rr * .1, cx, cy, rr);
+      g.addColorStop(0, i === 2 ? 'rgb(190,208,160)' : 'rgb(170,192,144)'); g.addColorStop(.7, 'rgb(128,156,112)'); g.addColorStop(1, 'rgb(104,132,96)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.fill();
+    });
     ctx.restore();
   }
-  // Glasfassade mit dunklen Profilen (eine Seite)
-  function facade(side, fb, ft, a, ug) {
-    var n = side === 'L' ? 8 : 6, len = side === 'L' ? W : D;
+  // Glasfassade eines Geschosses (eine Seite): Deckenstirn, Verglasung, Profile, Storen, Spiegelung
+  function facade(side, fb, ft, lvl, ug, eg) {
+    var n = side === 'L' ? 9 : 7, len = side === 'L' ? W : D;
     var F = function (u, z) { return side === 'L' ? P(u, D, z) : P(W, D - u, z); };
-    var g1 = ug ? ft - .32 : fb + .06, g2 = ft - .1;
-    // Brüstung/Deckenstirn
-    poly([F(0, fb), F(len, fb), F(len, ft), F(0, ft)], grad(F(0, ft), F(0, fb), side === 'L' ? 'rgba(232,227,218,1)' : 'rgba(214,207,195,1)', side === 'L' ? 'rgba(220,213,201,1)' : 'rgba(198,190,177,1)'), C.edge);
-    // Glas
-    poly([F(.15, g1), F(len - .15, g1), F(len - .15, g2), F(.15, g2)],
-      grad(F(.15, g2), F(len - .15, g1), side === 'L' ? 'rgba(186,208,226,.96)' : 'rgba(160,186,206,.96)', side === 'L' ? 'rgba(96,126,152,.96)' : 'rgba(80,108,134,.96)'));
-    // Spiegelung (diagonaler Lichtstreifen)
-    ctx.save(); ctx.globalAlpha *= .22;
-    poly([F(len * .18, g2), F(len * .3, g2), F(len * .22, g1), F(len * .1, g1)], '#fff');
-    poly([F(len * .62, g2), F(len * .67, g2), F(len * .59, g1), F(len * .54, g1)], '#fff');
+    var dark = side === 'R';
+    poly([F(0, fb), F(len, fb), F(len, ft), F(0, ft)], dark ? 'rgb(203,196,184)' : 'rgb(226,221,212)');
+    if (ug) {   // Untergeschoss: Sichtbeton mit schmalen Oberlichtern
+      for (var q = 0; q < n; q += 2) { var u0 = .25 + q * (len - .5) / n, u1 = u0 + (len - .5) / n * .8;
+        poly([F(u0, ft - .34), F(u1, ft - .34), F(u1, ft - .12), F(u0, ft - .12)], dark ? 'rgb(84,106,128)' : 'rgb(118,142,164)', rgba(C.frame, .7), 1); }
+      return;
+    }
+    var g1 = fb + .03, g2 = ft - .05, bw = (len - .2) / n;
+    poly([F(.1, g1), F(len - .1, g1), F(len - .1, g2), F(.1, g2)],
+      grad(F(.1, g2), F(.1, g1), dark ? 'rgb(150,176,198)' : 'rgb(190,211,228)', dark ? 'rgb(74,100,126)' : 'rgb(104,134,160)'));
+    // Storen (Lamellen) – je Feld zufällig, aber fest
+    for (var k = 0; k < n; k++) {
+      var r = hash(lvl * 31 + k * 7 + (dark ? 3 : 0));
+      if (r < .38 && !(eg && side === 'L' && k >= 2 && k <= 4)) {
+        var f = .25 + .55 * hash(r * 91), zb = g2 - (g2 - g1) * f, ua = .1 + k * bw, ub = ua + bw;
+        poly([F(ua, g2), F(ub, g2), F(ub, zb), F(ua, zb)], dark ? 'rgb(178,174,166)' : 'rgb(206,202,194)');
+        ctx.save(); ctx.strokeStyle = 'rgba(120,116,108,.35)'; ctx.lineWidth = .6;
+        for (var zz = g2 - .06; zz > zb; zz -= .07) { path([F(ua, zz), F(ub, zz)]); ctx.stroke(); }
+        ctx.restore();
+      }
+    }
+    // Eingang im EG
+    if (eg && side === 'L') {
+      poly([F(.1 + 2 * bw, g1), F(.1 + 5 * bw, g1), F(.1 + 5 * bw, g2 - .25), F(.1 + 2 * bw, g2 - .25)], 'rgb(58,74,92)');
+      ctx.save(); ctx.strokeStyle = 'rgba(200,214,228,.5)'; ctx.lineWidth = .8; path([F(.1 + 3.5 * bw, g1), F(.1 + 3.5 * bw, g2 - .25)]); ctx.stroke(); ctx.restore();
+    }
+    // Spiegelung
+    ctx.save(); ctx.globalAlpha *= .16;
+    poly([F(len * .16, g2), F(len * .27, g2), F(len * .2, g1), F(len * .09, g1)], '#fff');
+    poly([F(len * .6, g2), F(len * .65, g2), F(len * .58, g1), F(len * .53, g1)], '#fff');
     ctx.restore();
     // Profile
-    ctx.save(); ctx.strokeStyle = rgba(C.frame, .85); ctx.lineWidth = 1.1;
-    for (var k = 0; k <= n; k++) { var u = .15 + k * (len - .3) / n; path([F(u, g1), F(u, g2)]); ctx.stroke(); }
-    path([F(.15, g2), F(len - .15, g2)]); ctx.stroke(); path([F(.15, g1), F(len - .15, g1)]); ctx.stroke();
+    ctx.save(); ctx.strokeStyle = rgba(C.frame, .8); ctx.lineWidth = 1;
+    for (k = 0; k <= n; k++) { var u = .1 + k * bw; path([F(u, g1), F(u, g2)]); ctx.stroke(); }
+    ctx.lineWidth = .6; path([F(.1, g1 + .14), F(len - .1, g1 + .14)]); ctx.stroke();
     ctx.restore();
+    // Deckenstirn-Linie
+    ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = .8; path([F(0, ft), F(len, ft)]); ctx.stroke(); ctx.restore();
+  }
+  function rectOverlap(a, b) { return a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1]; }
+  // Dachaufsicht: Elemente nach Tiefe sortiert, damit nichts schwebt oder durchscheint
+  var TECH = [3.5, 2.7, 2, 1.6], HV = [[1.2, 5.3, 1.3, .9], [7.1, 5.4, 1.1, .8]];
+  var PANELS = [];
+  (function () {
+    for (var py = .7; py < D - 1; py += 1.55) for (var px = .55; px < W - 2; px += 2.1) {
+      var r = [px, py, 1.9, 1.05], blocked = rectOverlap(r, [TECH[0] - .3, TECH[1] - .3, TECH[2] + .6, TECH[3] + .6]);
+      HV.forEach(function (h) { if (rectOverlap(r, [h[0] - .25, h[1] - .25, h[2] + .5, h[3] + .5])) blocked = true; });
+      RODS.forEach(function (q) { if (rectOverlap(r, [q[0] - .35, q[1] - .35, .7, .7])) blocked = true; });
+      if (!blocked) PANELS.push(r);
+    }
+  })();
+  function roof(zz, lps) {
+    var items = [];
+    PANELS.forEach(function (r) { items.push({ d: r[0] + r[1] + r[2] / 2 + r[3] / 2, f: function () {
+      var x = r[0], y = r[1], w = r[2], dd = r[3];
+      poly([P(x + .05, y + dd, zz), P(x + w + .1, y + dd, zz), P(x + w + .1, y + dd + .25, zz), P(x + .05, y + dd + .25, zz)], 'rgba(80,70,60,.13)');
+      var a1 = P(x, y, zz + .28), a2 = P(x + w, y, zz + .28), a3 = P(x + w, y + dd, zz + .06), a4 = P(x, y + dd, zz + .06);
+      poly([P(x, y + dd, zz), P(x + w, y + dd, zz), a3, a4], 'rgb(150,154,160)');
+      poly([a1, a2, a3, a4], grad(a1, a3, 'rgb(62,88,124)', 'rgb(26,40,64)'), 'rgb(176,190,206)', .8);
+      ctx.save(); ctx.strokeStyle = 'rgba(170,190,215,.28)'; ctx.lineWidth = .5;
+      for (var c = 1; c < 6; c++) { path([P(x + w * c / 6, y, zz + .28), P(x + w * c / 6, y + dd, zz + .06)]); ctx.stroke(); }
+      path([P(x, y + dd / 2, zz + .17), P(x + w, y + dd / 2, zz + .17)]); ctx.stroke(); ctx.restore();
+    } }); });
+    items.push({ d: TECH[0] + TECH[1] + TECH[2] / 2 + TECH[3] / 2 + .4, f: function () {
+      var t = TECH;
+      poly([P(t[0] + .1, t[1] + t[3], zz), P(t[0] + t[2] + .5, t[1] + t[3], zz), P(t[0] + t[2] + .5, t[1] + t[3] + .5, zz), P(t[0] + .1, t[1] + t[3] + .5, zz)], 'rgba(80,70,60,.12)');
+      box(t[0], t[1], zz, t[2], t[3], .78, 'rgb(234,232,228)', 'rgb(214,210,204)', 'rgb(192,188,182)', C.edge);
+      ctx.save(); ctx.strokeStyle = 'rgba(120,116,110,.5)'; ctx.lineWidth = .6;
+      for (var zl = zz + .2; zl < zz + .65; zl += .08) { path([P(t[0] + t[2], t[1] + .2, zl), P(t[0] + t[2], t[1] + .9, zl)]); ctx.stroke(); }
+      ctx.restore();
+      poly([P(t[0] + .4, t[1] + t[3], zz), P(t[0] + .85, t[1] + t[3], zz), P(t[0] + .85, t[1] + t[3], zz + .55), P(t[0] + .4, t[1] + t[3], zz + .55)], 'rgb(150,156,164)');
+    } });
+    HV.forEach(function (h) { items.push({ d: h[0] + h[1] + h[2] / 2 + h[3] / 2, f: function () {
+      box(h[0], h[1], zz, h[2], h[3], .42, 'rgb(220,222,224)', 'rgb(196,199,203)', 'rgb(176,180,186)', C.edge);
+      [.3, .75].forEach(function (f) { var c = P(h[0] + h[2] * f, h[1] + h[3] / 2, zz + .42);
+        ctx.save(); ctx.fillStyle = 'rgb(120,126,134)'; ctx.beginPath(); ctx.ellipse(c[0], c[1], h[3] * s * .32, h[3] * s * .18, 0, 0, 7); ctx.fill(); ctx.restore(); });
+    } }); });
+    RODS.forEach(function (q) { items.push({ d: q[0] + q[1], f: function () {
+      var b0 = P(q[0], q[1], zz), b1 = P(q[0], q[1], zz + 1.25);
+      ctx.save(); ctx.fillStyle = 'rgb(120,120,120)'; ctx.beginPath(); ctx.ellipse(b0[0], b0[1], s * .16, s * .08, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = lps > .02 ? C.lps : 'rgb(150,152,156)'; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; path([b0, b1]); ctx.stroke(); ctx.restore();
+    } }); });
+    items.sort(function (a, b) { return a.d - b.d; }).forEach(function (it) { it.f(); });
   }
 
   function frame(p) {
@@ -150,31 +224,37 @@
     ctx.save(); ctx.globalAlpha = (1 - merge) * (mobile ? mix(.18, 1, intro) : 1);
 
     var c0 = P(W / 2, D / 2, 0), g0 = ctx.createRadialGradient(c0[0], c0[1] + 10, 10, c0[0], c0[1], s * 9);
-    g0.addColorStop(0, 'rgba(70,58,44,.2)'); g0.addColorStop(1, 'rgba(70,58,44,0)');
+    g0.addColorStop(0, 'rgba(70,58,44,.18)'); g0.addColorStop(1, 'rgba(70,58,44,0)');
     ctx.fillStyle = g0; ctx.fillRect(0, 0, cw, ch);
+    var tz = base[1];
+    var TREES = [[-3.2, D + .6, .75], [2.1, D + 2.8, .62], [6.8, D + 3, .7], [W + 2.6, D + 1.4, .72], [W + 2.9, 2.2, .6], [-3.4, D + 2.6, .5]];
 
-    if (terrA > .01) {
-      var tz = base[1];
+    function ground() {
       ctx.save(); ctx.globalAlpha *= terrA;
-      poly([P(-3, -2.5, tz), P(W + 3.5, -2.5, tz), P(W + 3.5, D + 3.5, tz), P(-3, D + 3.5, tz)], grad(P(-3, -2.5, tz), P(W + 3.5, D + 3.5, tz), 'rgba(230,224,211,.95)', 'rgba(214,206,190,.95)'));
-      poly([P(W, D * .42, tz + .01), P(W + 3.5, D * .42, tz + .01), P(W + 3.5, D * .58, tz + .01), P(W, D * .58, tz + .01)], 'rgba(200,192,178,.95)');
+      // Terrain, Rasen, Gehweg, Strasse
+      poly([P(-4.5, -3, tz), P(W + 4.5, -3, tz), P(W + 4.5, D + 4.5, tz), P(-4.5, D + 4.5, tz)], grad(P(-4.5, -3, tz), P(W + 4.5, D + 4.5, tz), 'rgb(232,227,215)', 'rgb(216,208,192)'));
+      poly([P(-4.2, D + 1.1, tz), P(W + 4.2, D + 1.1, tz), P(W + 4.2, D + 4.2, tz), P(-4.2, D + 4.2, tz)], 'rgba(170,186,140,.38)');
+      poly([P(W + 1.1, -2.7, tz), P(W + 4.2, -2.7, tz), P(W + 4.2, D + 1.1, tz), P(W + 1.1, D + 1.1, tz)], 'rgba(170,186,140,.3)');
+      poly([P(-.6, D, tz), P(W + 1.1, D, tz), P(W + 1.1, D + 1.1, tz), P(-.6, D + 1.1, tz)], 'rgb(222,216,204)');
+      poly([P(2.1, D + 1.1, tz), P(3.3, D + 1.1, tz), P(3.3, D + 4.2, tz), P(2.1, D + 4.2, tz)], 'rgb(222,216,204)');
+      // Kontaktschatten rund um den Bau
+      poly([P(-.25, -.25, tz), P(W + .35, -.25, tz), P(W + .35, D + .35, tz), P(-.25, D + .35, tz)], 'rgba(70,58,44,.14)');
       ctx.restore();
-      tree(-1.6, 1.3, tz, .55, terrA); tree(-1.8, 5, tz, .7, terrA); tree(W + 2.3, D + 1.8, tz, .65, terrA); tree(3, D + 2.2, tz, .5, terrA);
     }
 
     LEVELS.forEach(function (L, i) {
       var b = base[i], h = L.h, t = .16, zz = b + t + .01, top = i === NL - 1;
-      if (i > 0 && ex > .05) {
-        var sp = [P(.3, .3, base[i - 1] + .2), P(W + .6, .3, base[i - 1] + .2), P(W + .6, D + .6, base[i - 1] + .2), P(.3, D + .6, base[i - 1] + .2)];
-        ctx.save(); ctx.globalAlpha *= .1 * ex; ctx.filter = 'blur(8px)'; poly(sp, '#3c434a'); ctx.restore();
+      if (i > 0 && ex > .05) {   // weicher Schatten des oberen Geschosses (ohne teuren Blur-Filter)
+        var cA = P(W / 2 + .3, D / 2 + .3, base[i - 1] + .2), gS = ctx.createRadialGradient(cA[0], cA[1], 0, cA[0], cA[1], (W + D) * COS * s * .55);
+        gS.addColorStop(0, 'rgba(60,67,74,' + (.12 * ex) + ')'); gS.addColorStop(1, 'rgba(60,67,74,0)');
+        ctx.fillStyle = gS; ctx.fillRect(cA[0] - (W + D) * s, cA[1] - (W + D) * s, (W + D) * s * 2, (W + D) * s * 2);
       }
-      box(0, 0, b, W, D, t, top ? '#ddd' : rgba(C.slabTop, .96 - ex * .32), rgba(C.slabL, .96), rgba(C.slabR, .96), C.edge);
+      box(0, 0, b, W, D, t, top ? 'rgb(222,218,210)' : rgba(C.slabTop, .97 - ex * .3), 'rgb(214,208,198)', 'rgb(198,191,180)', C.edge);
       if (top) {
         poly([P(0, 0, b + t), P(W, 0, b + t), P(W, D, b + t), P(0, D, b + t)], gravelPat);
-        // Attika
-        box(0, 0, b + t, W, .12, .22, 'rgba(226,221,212,1)', 'rgba(210,203,192,1)', 'rgba(196,189,177,1)');
-        box(0, D - .12, b + t, W, .12, .22, 'rgba(226,221,212,1)', 'rgba(210,203,192,1)', 'rgba(196,189,177,1)');
-        box(W - .12, 0, b + t, .12, D, .22, 'rgba(226,221,212,1)', 'rgba(210,203,192,1)', 'rgba(196,189,177,1)');
+        // Attika hinten (vor den Dachaufbauten)
+        box(0, 0, b + t, W, .14, .24, 'rgb(230,226,218)', 'rgb(212,206,196)', 'rgb(198,191,180)');
+        box(0, 0, b + t, .14, D, .24, 'rgb(230,226,218)', 'rgb(212,206,196)', 'rgb(198,191,180)');
       }
       if (h >= .9) {
         ctx.save(); ctx.globalAlpha *= .5 + .5 * ex;
@@ -210,25 +290,27 @@
         [[2, 2], [4.5, 1.6], [7, 2], [2, 5.2], [7, 5.2]].forEach(function (q) { dot([q[0], q[1], zz + .75], 2.1, C.light, sub(5)); });
       }
       if (top) {
-        for (var px = .6; px < W - 1.6; px += 2.2) for (var py = .6; py < D - 1; py += 1.6) {
-          if (px > 3 && px < 5.6 && py > 2.2 && py < 4.6) continue;
-          var a1 = P(px, py, zz), a2 = P(px + 1.85, py, zz + .1), a3 = P(px + 1.85, py + 1.15, zz + .1), a4 = P(px, py + 1.15, zz);
-          poly([a1, a2, a3, a4], grad(a1, a3, 'rgba(58,84,120,.95)', 'rgba(28,44,70,.95)'), 'rgba(190,210,232,.65)', 1);
-          ctx.save(); ctx.globalAlpha *= .18; path([a1, a2]); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
-        }
-        box(3.7, 2.8, zz, 1.6, 1.4, .65, 'rgba(232,234,238,.97)', 'rgba(206,210,217,.97)', 'rgba(186,191,200,.97)', C.edge);
-        line([[0, 0, zz + .2], [W, 0, zz + .2], [W, D, zz + .2], [0, D, zz + .2], [0, 0, zz + .2]], C.lps, sub(6), 1.5);
-        line([[W / 2, 0, zz + .2], [W / 2, D, zz + .2]], C.lps, sub(6, .05), 1);
-        RODS.forEach(function (q) { line([[q[0], q[1], zz], [q[0], q[1], zz + 1.3]], C.lps, Math.max(sub(6, .1), .4), 1.5); dot([q[0], q[1], zz + 1.3], 2.1, C.lps, Math.max(sub(6, .1), .45)); });
+        roof(b + t, sub(6, .1));
+        // Fangleitung auf der Attika
+        line([[.07, .07, b + t + .25], [W - .07, .07, b + t + .25], [W - .07, D - .07, b + t + .25], [.07, D - .07, b + t + .25], [.07, .07, b + t + .25]], C.lps, sub(6), 1.4);
+        line([[W / 2, .07, b + t + .02], [W / 2, D - .07, b + t + .02]], C.lps, sub(6, .05), 1);
+        RODS.forEach(function (q) { dot([q[0], q[1], b + t + 1.25], 2, C.lps, sub(6, .15)); });
+        // Attika vorne (zuletzt, verdeckt Dachrand korrekt)
+        box(0, D - .14, b + t, W, .14, .24, 'rgb(232,228,220)', 'rgb(216,210,200)', 'rgb(200,193,182)');
+        box(W - .14, 0, b + t, .14, D, .24, 'rgb(232,228,220)', 'rgb(216,210,200)', 'rgb(200,193,182)');
       }
 
       if (h >= .9 && wallA > .02) {
         ctx.save(); ctx.globalAlpha *= wallA;
-        facade('L', b + t, b + h, wallA, i === 0);
-        facade('R', b + t, b + h, wallA, i === 0);
+        facade('L', b + t, b + h, i, i === 0, L.key === 'eg');
+        facade('R', b + t, b + h, i, i === 0, L.key === 'eg');
+        if (L.key === 'eg') box(1.9, D, b + h - .22, 3, .7, .07, 'rgb(236,233,226)', 'rgb(206,200,190)', 'rgb(190,184,174)', C.edge);   // Vordach Eingang
         ctx.restore();
       }
+      if (i === 0 && terrA > .01) ground();   // Terrain deckt das Untergeschoss ab
     });
+    // Bäume zuletzt und nach Tiefe sortiert – stehen nie «im» Gebäude
+    if (terrA > .01) TREES.slice().sort(function (a, b) { return (a[0] + a[1]) - (b[0] + b[1]); }).forEach(function (q) { tree(q[0], q[1], tz, q[2], terrA); });
 
     [[0, D], [W, D], [W, 0]].forEach(function (q) { line([[q[0], q[1], roofZ + .2], [q[0], q[1], base[0]]], C.lps, sub(6, .15), 1.2); });
     line([[5.25, 2.95, base[0] + .85], [5.25, 2.95, base[NL - 2] + .7]], C.data, sub(2, .1), 1.6, { flow: true });
