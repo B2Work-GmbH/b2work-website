@@ -60,7 +60,7 @@
 
     // Baukörper: Lage und Grösse
     var bw = Math.min(cw * (mobile ? .19 : .13), ch * .2), bd = bw * .62;      // Breite, Tiefe (isometrisch)
-    var floors = 7, fh = Math.min(ch * (mobile ? .036 : .05), bw * .34), gap = open * fh * (mobile ? .55 : .5);
+    var floors = 7, fh = Math.min(ch * (mobile ? .036 : .05), bw * .34), gap = open * fh * (mobile ? .7 : .75);
     var bh = floors * fh + (floors - 1) * gap;
     var cx = mobile ? cw * .5 : mix(cw * .7, cw * .5, intro);
     var cy = mobile ? mix(ch * .72, ch * .5, intro) : ch * .52;
@@ -119,7 +119,9 @@
       var sh = ctx.createRadialGradient(cx, bot + dy * .6, 4, cx, bot + dy * .6, bw * 1.4);
       sh.addColorStop(0, 'rgba(60,50,40,.14)'); sh.addColorStop(1, 'rgba(60,50,40,0)');
       ctx.fillStyle = sh; ctx.fillRect(cx - bw * 1.6, bot - bw, bw * 3.2, bw * 2);
-      for (var f = 0; f < floors; f++) {
+      // von unten nach oben zeichnen: obere Geschosse liegen über den unteren (Blick von oben), Platten heben nur vertikal ab
+      var DOTS = [];
+      for (var f = floors - 1; f >= 0; f--) {
         var zt = top + f * (fh + gap), zb = zt + fh;
         LAB[f] = { lx: cx - hx - dx / 2, ly: zt + dy / 2 + fh / 2, rx: cx + hx + dx / 2, ry: zt + fh / 2 - dy / 4 };
         var L = cx - hx - dx / 2, Rr = cx + hx + dx / 2;
@@ -127,8 +129,8 @@
         var front = [[cx - hx - dx / 2, zt + dy / 2], [cx + hx - dx / 2, zt + dy / 2], [cx + hx - dx / 2, zb + dy / 2], [cx - hx - dx / 2, zb + dy / 2]];
         var side = [[cx + hx - dx / 2, zt + dy / 2], [cx + hx + dx / 2, zt - dy / 2], [cx + hx + dx / 2, zb - dy / 2], [cx + hx - dx / 2, zb + dy / 2]];
         var topF = [[cx - hx - dx / 2, zt + dy / 2], [cx - hx + dx / 2, zt - dy / 2], [cx + hx + dx / 2, zt - dy / 2], [cx + hx - dx / 2, zt + dy / 2]];
-        poly(front, 'rgba(253,252,249,.92)'); poly(side, 'rgba(236,231,222,.95)');
-        if (f === 0 || open > .05) poly(topF, f === 0 ? 'rgba(244,240,233,.98)' : 'rgba(244,240,233,' + (.9 * open) + ')');
+        poly(front, 'rgba(253,252,249,' + mix(.92, .58, open) + ')'); poly(side, 'rgba(236,231,222,' + mix(.95, .62, open) + ')');   // geöffnet: transparenter
+        if (f === 0 || open > .05) poly(topF, 'rgba(244,240,233,' + (f === 0 ? mix(.98, .72, open) : .72 * open) + ')');
         // Fensterband: feine vertikale Teilung
         ctx.strokeStyle = 'rgba(' + INK + ',.16)'; ctx.lineWidth = .8;
         var bands = 8;
@@ -140,11 +142,14 @@
         // Leuchtpunkte je Geschoss in Leistungsfarbe (sobald geöffnet)
         if (open > .3) {
           var kk = f % 7, la = ease(TH(kk), TH(kk) + .05, p) * open;
-          if (la > .01) { var m = [mix(topF[0][0], topF[2][0], .5), mix(topF[0][1], topF[2][1], .5)];
-            ctx.fillStyle = hexA(GC[kk], .25 * la); ctx.beginPath(); ctx.arc(m[0], m[1], 9, 0, 7); ctx.fill();
-            ctx.fillStyle = hexA(GC[kk], .95 * la); ctx.beginPath(); ctx.arc(m[0], m[1], 3, 0, 7); ctx.fill(); }
+          if (la > .01) DOTS.push([mix(topF[0][0], topF[2][0], .5), mix(topF[0][1], topF[2][1], .5), kk, la]);
         }
       }
+      // Leuchtpunkte zuletzt, damit sie durch die darüberliegende Platte sichtbar bleiben
+      DOTS.forEach(function (d) {
+        ctx.fillStyle = hexA(GC[d[2]], .25 * d[3]); ctx.beginPath(); ctx.arc(d[0], d[1], 9, 0, 7); ctx.fill();
+        ctx.fillStyle = hexA(GC[d[2]], .95 * d[3]); ctx.beginPath(); ctx.arc(d[0], d[1], 3, 0, 7); ctx.fill();
+      });
       // (Fangstange entfernt, Wunsch 23.11.2026)
       var rx = cx + hx * .35, rt = top - dy * .1;
       // Ableitung entlang der Kante (leuchtet beim Puls)
